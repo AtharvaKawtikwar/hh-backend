@@ -1,24 +1,31 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-
 // src/services/match.service.ts
-import * as rideModel from "../models/ride.model";
 import * as reqModel  from "../models/request.model";
-import { findRidesNearby }    from "./ride.service";
+import * as userModel from "../models/user.model"; // Import User Model
 import { findRequestsNearby } from "./request.service";
 
 const DEFAULT_RADIUS = 5000;
 
+/**
+ * For a RIDER: Find nearby available DRIVERS.
+ */
 export async function getDriverMatchesForRider(requestId: string, radius = DEFAULT_RADIUS) {
-  const req = await reqModel.getRequestById(requestId);
+  // 1. Get the Rider's request to know their pickup location
+  const req = await reqModel.getRequest(requestId); 
   if (!req) return null;
-  // find driver rides near rider’s origin
-  return findRidesNearby(req.origin.lat, req.origin.lng, radius);
+
+  // 2. Search the USERS collection for drivers near that pickup
+  return userModel.findNearbyUsers(
+    { lat: req.pickup.lat, lng: req.pickup.lng }, 
+    radius, 
+    "driver"
+  );
 }
 
-export async function getRiderMatchesForDriver(rideId: string, radius = DEFAULT_RADIUS) {
-  const ride = await rideModel.getRideById(rideId);
-  if (!ride) return null;
-  // find ride requests near driver’s origin
-  return findRequestsNearby(ride.origin.lat, ride.origin.lng, radius);
+/**
+ * For a DRIVER: Find nearby active RIDE REQUESTS.
+ * Drivers provide their current location (lat/lng).
+ */
+export async function getRiderMatchesForDriver(lat: number, lng: number, radius = DEFAULT_RADIUS) {
+  // Search the REQUESTS collection for pickups near the driver
+  return findRequestsNearby(lat, lng, radius);
 }

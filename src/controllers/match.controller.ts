@@ -3,9 +3,9 @@ import { Request, Response } from "express";
 import * as matchSvc from "../services/match.service";
 
 export async function riderMatches(req: Request, res: Response): Promise<void> {
-  console.log(`API Called: GET /api/matches/rider/${req.params.requestId}`);
   const { requestId } = req.params;
   const matches = await matchSvc.getDriverMatchesForRider(requestId);
+  
   if (matches === null) {
     res.status(404).json({ error: "Request not found" });
     return;
@@ -14,12 +14,18 @@ export async function riderMatches(req: Request, res: Response): Promise<void> {
 }
 
 export async function driverMatches(req: Request, res: Response): Promise<void> {
-  console.log(`API Called: GET /api/matches/driver/${req.params.rideId}`);
-  const { rideId } = req.params;
-  const matches = await matchSvc.getRiderMatchesForDriver(rideId);
-  if (matches === null) {
-    res.status(404).json({ error: "Ride not found" });
+  // Drivers query based on their current location (lat, lng)
+  const { lat, lng } = req.query; 
+
+  if (!lat || !lng) {
+    res.status(400).json({ error: "Missing lat/lng query params" });
     return;
   }
+
+  const matches = await matchSvc.getRiderMatchesForDriver(
+    Number(lat), 
+    Number(lng)
+  );
+  
   res.json(matches);
 }

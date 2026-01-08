@@ -50,3 +50,13 @@ export async function listRequestsByRider(riderId: string, limit = 20) {
     .get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as RideRequestDoc) }));
 }
+
+export async function listActiveRequests(limit = 100): Promise<Array<RideRequestDoc & { id: string }>> {
+  const snap = await db.collection(COLLECTION)
+    .where("status", "==", "REQUESTED")
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+  
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as RideRequestDoc) }));
+}

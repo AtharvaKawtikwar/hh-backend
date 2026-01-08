@@ -51,6 +51,13 @@ async function fetchAllRequests() {
     return requestModel.listAllRequests();
 }
 async function findRequestsNearby(lat, lng, radiusMeters) {
-    const requests = await requestModel.listAllRequests();
-    return requests.filter((r) => (0, geoutils_1.getDistance)(r.origin.lat, r.origin.lng, lat, lng) <= radiusMeters);
+    // 1. Get only ACTIVE requests (Status: REQUESTED)
+    const requests = await requestModel.listActiveRequests();
+    // 2. Filter by distance (Naive in-memory filter for MVP)
+    return requests.filter((r) => {
+        if (!r.pickup)
+            return false;
+        const dist = (0, geoutils_1.getDistance)(r.pickup.lat, r.pickup.lng, lat, lng);
+        return dist <= radiusMeters;
+    });
 }

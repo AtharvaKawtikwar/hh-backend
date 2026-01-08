@@ -7,6 +7,7 @@ exports.createRequest = createRequest;
 exports.getRequest = getRequest;
 exports.cancelRequest = cancelRequest;
 exports.listRequestsByRider = listRequestsByRider;
+exports.listActiveRequests = listActiveRequests;
 const firebase_1 = require("../config/firebase");
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
 const COLLECTION = "rideRequests";
@@ -42,6 +43,14 @@ async function listRequestsByRider(riderId, limit = 20) {
     const snap = await firebase_1.db
         .collection(COLLECTION)
         .where("riderId", "==", riderId)
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+async function listActiveRequests(limit = 100) {
+    const snap = await firebase_1.db.collection(COLLECTION)
+        .where("status", "==", "REQUESTED")
         .orderBy("createdAt", "desc")
         .limit(limit)
         .get();
