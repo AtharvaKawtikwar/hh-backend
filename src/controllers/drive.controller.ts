@@ -2,19 +2,17 @@ import { Response } from "express";
 import { AuthedRequest } from "../middleware/requireUser";
 import { db } from "../config/firebase";
 
-// 1. Explicitly set return type to Promise<void>
 export async function createDrive(req: AuthedRequest, res: Response): Promise<void> {
   try {
-    const { pickup, dropoff, date, time, overview_polyline } = req.body;
+    // 1. Get price from body
+    const { pickup, dropoff, date, time, overview_polyline, price } = req.body;
 
-    // 2. Validate
-    if (!pickup || !dropoff || !date || !time || !overview_polyline) {
-       // Send response, then empty return to stop execution
-       res.status(400).json({ error: "Missing required fields (pickup, dropoff, date, time, polyline)" });
+    if (!pickup || !dropoff || !date || !time || !overview_polyline || !price) {
+       res.status(400).json({ error: "Missing fields: pickup, dropoff, date, time, polyline, price" });
        return;
     }
 
-    // 3. Save to Firestore
+    // 2. Save Price to DB
     const driveRef = await db.collection("driveOffers").add({
       driverId: req.userId,
       pickup,
@@ -22,13 +20,13 @@ export async function createDrive(req: AuthedRequest, res: Response): Promise<vo
       date,   
       time,   
       overview_polyline,
+      price: Number(price), // Ensure it's a number
       status: "active",
       createdAt: new Date().toISOString()
     });
 
-    console.log(`✅ Drive Published: ${driveRef.id} for Date: ${date}`);
+    console.log(`✅ Drive Published: ${driveRef.id} for ₹${price}`);
 
-    // Just send the response (don't return it)
     res.status(201).json({ id: driveRef.id, message: "Drive published successfully" });
 
   } catch (error) {
@@ -37,22 +35,23 @@ export async function createDrive(req: AuthedRequest, res: Response): Promise<vo
   }
 }
 
-// Fixed getMyDrives as well
+// Keep getMyDrives as it was...
 export async function getMyDrives(req: AuthedRequest, res: Response): Promise<void> {
+  // ... (Same as before)
   try {
-    const drivesSnapshot = await db.collection("driveOffers")
-      .where("driverId", "==", req.userId)
-      .orderBy("createdAt", "desc")
-      .get();
-
-    const drives = drivesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    res.status(200).json(drives);
-  } catch (err) {
-    console.error("Error fetching drives:", err);
-    res.status(500).json({ error: "Failed to fetch drives" });
-  }
+      const drivesSnapshot = await db.collection("driveOffers")
+        .where("driverId", "==", req.userId)
+        .orderBy("createdAt", "desc")
+        .get();
+  
+      const drives = drivesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+  
+      res.status(200).json(drives);
+    } catch (err) {
+      console.error("Error fetching drives:", err);
+      res.status(500).json({ error: "Failed to fetch drives" });
+    }
 }

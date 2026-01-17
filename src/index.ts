@@ -21,16 +21,16 @@ const io = new Server(server, {
   }
 });
 
-// 2. DECLARE GLOBAL HERE (Set to 'any' to avoid type conflicts)
+// 2. Global Declaration (Use 'any' to fix TS issues)
 declare global {
   var io: any;
 }
 global.io = io;
 
-// 3. Socket Logic
 io.on("connection", (socket) => {
   console.log("↔️  Socket connected:", socket.id);
 
+  // A. Join User's Personal Room
   socket.on("register", (data) => {
     const { userId, role } = data;
     if (userId) {
@@ -39,8 +39,25 @@ io.on("connection", (socket) => {
     }
   });
 
+  // B. RIDER STARTS NEGOTIATION (Forward to Driver)
+  socket.on("negotiate:start", (data) => {
+    console.log(`💬 Negotiation from Rider ${data.riderId} -> Driver ${data.targetDriverId}`);
+    
+    // Forward the offer to the specific Driver
+    io.to(data.targetDriverId).emit("negotiate:offer", {
+        ...data,
+        eventId: Date.now()
+    });
+  });
+
+  // C. DRIVER RESPONDS (Forward to Rider)
+  socket.on("negotiate:respond", (data) => {
+    console.log(`🤝 Driver responded to Rider ${data.targetRiderId}: ${data.status}`);
+    io.to(data.targetRiderId).emit("negotiate:accept", data);
+  });
+
   socket.on("disconnect", () => {
-     // console.log("❌ Socket disconnected:", socket.id);
+     // console.log("❌ Socket disconnected");
   });
 });
 
