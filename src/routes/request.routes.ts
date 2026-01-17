@@ -1,22 +1,16 @@
-// @ts-nocheck
-
 import { Router } from "express";
-import { requireUser } from "../middleware/requireUser";
+import { requireUser } from "../middleware/requireUser"; // <--- MATCHES YOUR MIDDLEWARE
 import {
-  createRideRequest,
-  listMyRequests,
-  cancelRideRequest,
+  createRequestAndFindMatches,
 } from "../controllers/request.controller";
 
 const r = Router();
 
-// Rider creates a request
-r.post("/", requireUser, createRideRequest);
+// 1. Create a Request (Triggers the Matching Algorithm)
+r.post("/", requireUser, createRequestAndFindMatches);
 
-// Rider lists their own requests
-r.get("/", requireUser, listMyRequests);
-
-// Rider cancels their request
-r.post("/:id/cancel", requireUser, cancelRideRequest);
+// 2. List & Cancel (Commented out to prevent crash if not yet in controller)
+// r.get("/", requireUser, listMyRequests);
+// r.post("/:id/cancel", requireUser, cancelRideRequest);
 
 export default r;

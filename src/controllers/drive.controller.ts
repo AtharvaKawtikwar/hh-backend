@@ -1,31 +1,58 @@
 import { Response } from "express";
 import { AuthedRequest } from "../middleware/requireUser";
-import { createDriveOffer } from "../models/drive.model";
+import { db } from "../config/firebase";
 
-export async function createDrive(req: AuthedRequest, res: Response) {
-    if (req.userRole !== "driver") {
-        res.status(403).json({ error: "Only drivers can publish drives" });
-        return;
+// 1. Explicitly set return type to Promise<void>
+export async function createDrive(req: AuthedRequest, res: Response): Promise<void> {
+  try {
+    const { pickup, dropoff, date, time, overview_polyline } = req.body;
+
+    // 2. Validate
+    if (!pickup || !dropoff || !date || !time || !overview_polyline) {
+       // Send response, then empty return to stop execution
+       res.status(400).json({ error: "Missing required fields (pickup, dropoff, date, time, polyline)" });
+       return;
     }
 
-    const { pickup, dropoff, time } = req.body;
-    if (!pickup || !dropoff || !time) {
-        res.status(400).json({ error: "Missing pickup, dropoff, or time" });
-        return;
-    }
+    // 3. Save to Firestore
+    const driveRef = await db.collection("driveOffers").add({
+      driverId: req.userId,
+      pickup,
+      dropoff,
+      date,   
+      time,   
+      overview_polyline,
+      status: "active",
+      createdAt: new Date().toISOString()
+    });
 
-    try {
-        const drive = await createDriveOffer({
-            driverId: req.userId!,
-            pickup,
-            dropoff,
-            time,
-            status: "active",
-            createdAt: new Date()
-        });
-        res.status(201).json(drive);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to create drive offer" });
-    }
+    console.log(`✅ Drive Published: ${driveRef.id} for Date: ${date}`);
+
+    // Just send the response (don't return it)
+    res.status(201).json({ id: driveRef.id, message: "Drive published successfully" });
+
+  } catch (error) {
+    console.error("Error creating drive:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+// Fixed getMyDrives as well
+export async function getMyDrives(req: AuthedRequest, res: Response): Promise<void> {
+  try {
+    const drivesSnapshot = await db.collection("driveOffers")
+      .where("driverId", "==", req.userId)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const drives = drivesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.status(200).json(drives);
+  } catch (err) {
+    console.error("Error fetching drives:", err);
+    res.status(500).json({ error: "Failed to fetch drives" });
+  }
 }

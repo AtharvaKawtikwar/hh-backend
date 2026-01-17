@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { requireUser } from "../middleware/requireUser";
-import * as driveCtrl from "../controllers/drive.controller";
+import { createDrive, getMyDrives } from "../controllers/drive.controller"; 
 
 const router = Router();
 
-// POST /api/drives
-router.post("/", requireUser, driveCtrl.createDrive);
+router.post("/", requireUser, createDrive); 
+router.get("/", requireUser, getMyDrives);  
 
 export default router;
