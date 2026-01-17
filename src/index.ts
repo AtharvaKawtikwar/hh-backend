@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { Server } from "socket.io";
 import routes from "./routes"; 
+import { db } from "./config/firebase";
 
 dotenv.config();
 
@@ -58,6 +59,52 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
      // console.log("❌ Socket disconnected");
+  });
+
+  
+  // D. CHAT SYSTEM (WITH PERSISTENCE)
+  socket.on("chat:join", async (driveId) => {
+    console.log(`🔌 Socket ${socket.id} joined Chat Room: ${driveId}`);
+    socket.join(driveId);
+    
+    // 1. FETCH HISTORY from Firestore
+    try {
+      const historySnapshot = await db.collection("messages")
+        .where("driveId", "==", driveId)
+        .orderBy("timestamp", "asc") // Oldest first
+        .limit(50)
+        .get();
+
+      const history = historySnapshot.docs.map(doc => doc.data());
+      
+      // 2. SEND HISTORY to this specific user ONLY
+      socket.emit("chat:history", history);
+    } catch (err) {
+      console.error("Error fetching chat history:", err);
+    }
+  });
+
+  socket.on("chat:send", async (data) => {
+    const { driveId, senderId, text, senderName } = data;
+    console.log(`💬 Chat in ${driveId}: ${text}`);
+    
+    const messageData = {
+      driveId,
+      senderId,
+      senderName,
+      text,
+      timestamp: new Date().toISOString()
+    };
+
+    // 1. SAVE to Firestore
+    try {
+        await db.collection("messages").add(messageData);
+    } catch (e) {
+        console.error("Failed to save message", e);
+    }
+
+    // 2. BROADCAST to everyone in the room
+    io.to(driveId).emit("chat:receive", messageData);
   });
 });
 
